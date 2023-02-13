@@ -1,42 +1,18 @@
 import axios from "axios";
 import { Formik, Form, Field } from "formik";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import * as Yup from "yup";
+import { USER_ROLES } from "../constant";
+import Footer from "../Footer/footer";
+import Header from "../Header/header";
 
-// Creating schema
+const axiosInstance = axios.create({
+  baseURL: "http://localhost:3000",
+});
 
-// axios.create({
-//   baseURL: "http://localhost:3000",
-// });
+const LOGIN_URL = "/login";
 
-const LOGIN_URL = "http://localhost:3000/login";
-
-const onsubmit = async (values) => {
-  // Alert the input values of the form that we filled
-  console.log(values);
-
-  try {
-    const response = await axios.post(
-      LOGIN_URL,
-      JSON.stringify({
-        user: { email: values.email, password: values.password },
-      }),
-      {
-        headers: { "Content-Type": "application/json" },
-      }
-    );
-    console.log(response?.data);
-  } catch (error) {
-    if (!error?.response) {
-      console.log("no server response");
-    } else if (error.response?.status === 400) {
-      console.log("missing username and password 400 error");
-    } else if (error.response?.status === 401) {
-      console.log("unauthorized 401 error");
-    } else {
-      console.log("login failed");
-    }
-  }
-};
 const schema = Yup.object().shape({
   email: Yup.string()
     .required("Email is a required field")
@@ -46,9 +22,52 @@ const schema = Yup.object().shape({
     .min(6, "Password must be at least 6 characters"),
 });
 
-const Register = () => {
+const Login = () => {
+  const navigate = useNavigate();
+
+  const onsubmit = async (values) => {
+    const users = {
+      user: values,
+    };
+    console.log(users);
+
+    try {
+      const response = await axiosInstance.post(LOGIN_URL, users, {
+        //headers: { Authorization: accessToken },
+      });
+
+      const accessToken = await response?.headers?.authorization;
+
+      await localStorage.setItem("authToken", accessToken);
+
+      const role_id = response?.data?.data?.role_id;
+      const customer_id = response?.data?.data?.id;
+
+      if (role_id === USER_ROLES.ADMIN) {
+        // navigate to admin dashboard
+        toast.success(" Admin Logged in Successfully");
+        navigate("/admin");
+      } else {
+        // navigate to customer dashboard
+        toast.success(" Customer Logged in Successfully");
+        navigate(`/customerDashboard/${customer_id}`);
+      }
+    } catch (error) {
+      if (!error?.response) {
+        console.log("no server response");
+      } else if (error.response?.status === 400) {
+        console.log("missing username and password 400 error");
+      } else if (error.response?.status === 401) {
+        console.log("unauthorized 401 error");
+      } else {
+        console.log("login failed");
+      }
+    }
+  };
+
   return (
     <>
+      <Header />
       {/* Wrapping form inside formik tag and passing our schema to validationSchema prop */}
       <Formik
         validationSchema={schema}
@@ -87,15 +106,13 @@ const Register = () => {
                 {/* Click on submit button to submit the form */}
                 <button type="submit">Login</button>
               </Form>
-              {/* <p>Need an Account?</p>
-              put router link here
-              <a href="#">Sign Up</a> */}
             </div>
           </div>
         )}
       </Formik>
+      <Footer />
     </>
   );
 };
 
-export default Register;
+export default Login;
